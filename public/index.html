@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>DeepSeek 本地版 · 官方 Chat Demo</title>
+<meta content="0.1.1" name="application-version">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link href="/static/css/main.7361e32c.css" rel="stylesheet">
+<link href="/overlay.css" rel="stylesheet">
+<link href="/sidebar.css" rel="stylesheet">
+<!-- 由 server.mjs 动态生成：把 config.local.json 里的 API Key / 语言 / 主题 / 计费单价写进页面 -->
+<script src="/local-config.js"></script>
+<!-- 在官方 bundle 之前挂上「当前会话 id」探针（只观察，不改行为） -->
+<script src="/preload.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script defer src="/static/js/main.9820cd3a.js"></script>
+<!-- 注入层：会话导航 / 按轮删除 / 侧栏动效 / token 与花费 -->
+<script defer src="/overlay.js"></script>
+<!-- 注入层：左侧对话列表的置顶 + 多选 -->
+<script defer src="/sidebar.js"></script>
+</body>
+</html>

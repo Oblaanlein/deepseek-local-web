@@ -1,0 +1,330 @@
+/* ============================================================================
+ * 侧边栏对话列表：置顶 + 多选（对齐官方网页版的样子）
+ *  - 入口：列表顶部「置顶」一行右侧的小图标
+ *  - 选择态：顶部变成「选择对话 + ×」，条目变圆形勾选，底部操作条
+ * 只新增 dsn-* 类名，不改官方选择器。
+ * ========================================================================== */
+
+/* ------------------------------------------------------------ 置顶区 */
+/* 有置顶时：置顶块 + 下方一条分隔线（和官网页版一致）；没有置顶时整块不渲染 */
+.dsn-pinblock {
+  padding: 0 0 6px;
+  margin: 0 0 6px;
+  border-bottom: 1px solid var(--dsn-line);
+}
+
+.dsn-pinhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 6px 0 8px;
+  color: var(--dsn-muted);
+  font-size: 12px;
+  user-select: none;
+}
+.dsn-pinhead-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 没有置顶时，多选入口挂到第一个分组标题（今天）右侧，不额外占一行 */
+.sectionHeader-ac14ac.dsn-has-ms {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 多选入口图标（官方「置顶」右侧那个） */
+.dsn-msbtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsn-muted);
+  cursor: pointer;
+  opacity: .8;
+  transition: opacity .15s ease, color .15s ease, background .15s ease;
+}
+.dsn-msbtn:hover { opacity: 1; color: var(--dsn-accent); background: var(--dsn-bg-soft); }
+.dsn-msbtn svg { width: 15px; height: 15px; display: block; }
+
+/* 置顶项：与官方 .item-ff6fc9 完全对齐
+ * 官方值：height 40px / padding 9px 6px 9px 10px / radius 12px / font 14px, line-height 22px
+ *        hover  bg = --dsw-specific-sidebar-nav-item-hover
+ *        active bg = --dsw-specific-sidebar-nav-item-active-accent
+ */
+.dsn-pinrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 9px 6px 9px 10px;
+  border-radius: 12px;
+  color: var(--dsw-alias-label-primary, var(--dsn-fg));
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+  transition: background .14s ease;
+}
+.dsn-pinrow:not(.active):hover { background: var(--dsw-specific-sidebar-nav-item-hover, var(--dsn-bg-soft)); }
+/* 当前打开的那条对话：底色/文字完全照抄官方 active 规则 */
+.dsn-pinrow.active {
+  background-color: var(--dsw-specific-sidebar-nav-item-active-accent, var(--dsn-accent));
+  color: var(--dsw-alias-brand-primary-invert, #fff);
+}
+.dsn-pinrow.active:hover {
+  background-color: var(--dsw-specific-sidebar-nav-item-active-accent, var(--dsn-accent));
+}
+.dsn-pinrow.active .dsn-pintitle { color: inherit; }
+.dsn-pinrow.active .dsn-unpin { color: inherit; }
+.dsn-pintitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 18px;
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dsn-unpin {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dsn-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .14s ease, color .14s ease;
+}
+.dsn-pinrow:hover .dsn-unpin { opacity: .8; }
+.dsn-unpin:hover { opacity: 1; color: var(--dsn-danger); }
+
+/* 被置顶的原项隐藏（留在 DOM 里，便于 .click() 打开）
+ * 用 data 属性而不是 class：React 重挂节点时会重写 className，但会保留我写的 dataset，
+ * 且属性选择器对「新挂上来的同名节点」同样生效（不再漏出一个重复项）。 */
+.item-ff6fc9[data-dsn-pinned="1"] { display: none !important; }
+
+/* ------------------------------------------------- 单项上的置顶图标 */
+.dsn-pinbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dsn-muted);
+  cursor: pointer;
+  opacity: 0;
+  vertical-align: middle;
+  transition: opacity .14s ease, color .14s ease, background .14s ease;
+}
+.dsn-pinbtn svg { width: 14px; height: 14px; display: block; }
+.item-ff6fc9:hover .dsn-pinbtn { opacity: .75; }
+.dsn-pinbtn:hover { opacity: 1 !important; color: var(--dsn-accent); background: var(--dsn-bg-soft); }
+.dsn-pinbtn.on { opacity: 1 !important; color: var(--dsn-accent); }
+
+/* 置顶图标与官方「⋯」按钮对齐：
+ * 官方按钮是 28×28，我的图标原来是 20×20，父容器 `.action-ff6fc9` 又没设 align-items，
+ * 于是两个元素都贴着自己那一行的顶边 → 视觉上「顶对齐」、图标比按钮高 4px。
+ * 这里把图标撑到同样 28×28 并让容器居中，两者共用同一条水平中线。 */
+.dsn-pinbtn { width: 28px; height: 28px; }
+.action-ff6fc9 { align-items: center !important; }
+
+/* 官方「⋯」菜单打开期间，让它所属的会话行保持「已悬停」样式：
+ * 菜单是 body 上的 portal，鼠标一移上去，行就失去 :hover → 官方把 `.action-ff6fc9`
+ * 设成 display:none → 触发按钮 rect 变成 0 → 官方那套迷你 floating hook 重新测量后
+ * 把菜单挪到 (8,4)（页面左上角），移开又量对了再跳回来。撑住 display 就不跳了。 */
+.item-ff6fc9.dsn-menu-src .action-ff6fc9 { display: flex !important; }
+
+/* 左下角「设置」行的悬停底色：跟会话列表项用同一个变量（官方对 .settings-ac14ac 本来就写了
+ * :hover，但只有指针精确落在那颗按钮上才生效；整行 64px 高的上下留白、以及被 body 级透明节点
+ * 盖住时都不亮）。这里补三种情况：整行 hover、按钮自身 hover、以及 overlay.js 用坐标兜出来的
+ * `.dsn-hover`。 */
+.bottom-ac14ac:hover .settings-ac14ac,
+.settings-ac14ac:hover,
+.settings-ac14ac.dsn-hover {
+  background-color: var(--dsw-specific-sidebar-nav-item-hover, var(--dsn-bg-soft)) !important;
+}
+.settings-ac14ac { transition: background-color .14s ease; }
+
+/* ------------------------------------------------------------ 多选态 */
+/* 选择态隐藏品牌区、新对话按钮、底部设置行 */
+.sider-ac14ac.dsn-sel .top-ac14ac,
+.sider-ac14ac.dsn-sel .newChat-ac14ac,
+.sider-ac14ac.dsn-sel .bottom-ac14ac { display: none !important; }
+
+/* 给固定的标题栏 / 底部操作条让出位置，避免压住列表 */
+.sider-ac14ac.dsn-sel {
+  padding-top: 48px;
+  padding-bottom: 96px;
+  box-sizing: border-box;
+}
+/* 选择态里入口图标没意义，收起 */
+.sider-ac14ac.dsn-sel .dsn-msbtn { display: none; }
+
+/* 圆形勾选 */
+.dsn-itemcb {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0 9px 0 2px;
+  border: 1.5px solid #cfd4dd;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: border-color .15s ease, background .15s ease;
+}
+body.dark .dsn-itemcb { border-color: #4a4f59; }
+.dsn-selecting .item-ff6fc9 .dsn-itemcb,
+.dsn-selecting .dsn-pinrow .dsn-itemcb { display: block; }
+.dsn-itemcb:hover { border-color: var(--dsn-accent); }
+.dsn-itemcb:checked {
+  background: var(--dsn-accent);
+  border-color: var(--dsn-accent);
+}
+.dsn-itemcb:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 7.5px;
+  border: solid #fff;
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(42deg);
+}
+
+/* 选择态：整行可点，隐藏官方「…」 */
+.dsn-selecting .item-ff6fc9 { display: flex; align-items: center; cursor: pointer; }
+.dsn-selecting .item-ff6fc9 .action-ff6fc9,
+.dsn-selecting .item-ff6fc9 .dsn-pinbtn { display: none !important; }
+.item-ff6fc9.dsn-item-selected { background: color-mix(in srgb, var(--dsn-accent) 9%, transparent); border-radius: 8px; }
+.dsn-pinrow.dsn-item-selected { background: color-mix(in srgb, var(--dsn-accent) 9%, transparent); }
+.dsn-selecting .dsn-unpin { display: none !important; }
+
+/* 选择态顶部标题栏（覆盖在品牌区位置） */
+.dsn-selhead {
+  position: fixed;
+  z-index: 950;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 4px 0 8px;
+  font: 14px/1.4 -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  color: var(--dsn-fg);
+  background: var(--dsw-specific-sidebar-fill, var(--dsn-bg));
+}
+.dsn-selhead.show { display: flex; }
+.dsn-selhead-title { flex: 1 1 auto; font-weight: 500; }
+.dsn-selhead-close {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsn-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.dsn-selhead-close:hover { background: var(--dsn-bg-soft); color: var(--dsn-fg); }
+
+/* 选择态底部操作条 */
+.dsn-selbar {
+  position: fixed;
+  z-index: 950;
+  display: none;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 8px 10px;
+  background: var(--dsw-specific-sidebar-fill, var(--dsn-bg));
+  border-top: 1px solid var(--dsn-line);
+  font: 12px/1.4 -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  color: var(--dsn-fg);
+}
+.dsn-selbar.show { display: flex; }
+.dsn-selbar-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsn-muted);
+}
+.dsn-selall {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.dsn-selall input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1.5px solid #cfd4dd;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+body.dark .dsn-selall input { border-color: #4a4f59; }
+.dsn-selall input:checked { background: var(--dsn-accent); border-color: var(--dsn-accent); }
+.dsn-selall input:checked::after {
+  content: '';
+  position: absolute;
+  left: 3.5px;
+  top: 0.5px;
+  width: 4px;
+  height: 7px;
+  border: solid #fff;
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(42deg);
+}
+.dsn-selinfo { margin-right: auto; }
+
+.dsn-selbar-actions { display: flex; gap: 6px; }
+.dsn-actbtn {
+  flex: 1 1 0;
+  padding: 6px 0;
+  border: 1px solid var(--dsn-line);
+  border-radius: 8px;
+  background: var(--dsn-bg);
+  color: var(--dsn-fg);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+  white-space: nowrap;
+}
+.dsn-actbtn:hover:not(:disabled) { background: var(--dsn-bg-soft); color: var(--dsn-accent); }
+.dsn-actbtn:disabled { opacity: .45; cursor: not-allowed; }
+.dsn-actbtn.danger { color: var(--dsn-danger); border-color: color-mix(in srgb, var(--dsn-danger) 32%, var(--dsn-line)); }
+.dsn-actbtn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--dsn-danger) 9%, var(--dsn-bg)); color: var(--dsn-danger); }

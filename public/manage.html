@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>本地聊天记录管理 · DeepSeek 本地版</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1b1c1f; --muted: #6b7280; --line: #e6e8ee;
+    --card: #ffffff; --soft: #f6f7fb; --accent: #4d6bfe; --danger: #e5484d;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181c; --fg: #eceef3; --muted: #9aa1ad; --line: #2b2d34;
+      --card: #1e2025; --soft: #23252b; --accent: #7b8cff; --danger: #ff6b70;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 20px 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .card .k { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .card .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .card .v.small { font-size: 14px; font-weight: 500; overflow-wrap: break-word; }
+  .card .hint { color: var(--muted); font-size: 12px; font-weight: 400; margin-top: 3px; line-height: 1.45; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 14px; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 9px; padding: 8px 14px;
+    border: 1px solid var(--line); background: var(--card); color: var(--fg);
+    transition: .15s background, .15s border-color, .15s transform;
+  }
+  button:hover:not(:disabled) { background: var(--soft); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.06); background: var(--accent); }
+  button.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+  button.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 10%, var(--card)); }
+  button.mini { padding: 4px 10px; font-size: 13px; border-radius: 7px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--soft); }
+  tr:last-child td { border-bottom: 0; }
+  td.title { max-width: 380px; }
+  td.title .t { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.title .id { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 16px; }
+  .note { margin-top: 22px; color: var(--muted); font-size: 13px; }
+  .note ul { margin: 8px 0 0; padding-left: 20px; }
+  .note li { margin: 4px 0; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--soft); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
+  #toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px);
+    background: var(--fg); color: var(--bg); padding: 10px 18px; border-radius: 10px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: .22s ease; box-shadow: var(--shadow); z-index: 50;
+  }
+  #toast.show { opacity: .95; transform: translate(-50%, 0); }
+  .pill { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--soft); border: 1px solid var(--line); color: var(--muted); }
+  .pill.ok { color: #18a058; border-color: color-mix(in srgb, #18a058 35%, var(--line)); }
+  .pill.warn { color: #d97706; border-color: color-mix(in srgb, #d97706 35%, var(--line)); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>本地聊天记录管理</h1>
+    <span class="sub">·</span>
+    <a href="/">← 返回聊天</a>
+  </header>
+  <p class="sub">聊天记录保存在这个浏览器的 IndexedDB（库名 <code>chat-demo</code>）里，不上传任何服务器。</p>
+
+  <div class="grid">
+    <div class="card"><div class="k">API Key</div><div class="v small" id="st-key">读取中…</div></div>
+    <div class="card"><div class="k">对话数量</div><div class="v" id="st-count">—</div></div>
+    <div class="card"><div class="k">附件数量</div><div class="v" id="st-files">—</div></div>
+    <div class="card"><div class="k">占用估算</div><div class="v small" id="st-size">—</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button id="btn-refresh">刷新</button>
+    <button id="btn-export">导出全部为 JSON</button>
+    <button id="btn-import-help" class="mini" title="导入请回到聊天页面">导入说明</button>
+    <span style="flex:1"></span>
+    <button id="btn-clear-key" class="danger">清除 API Key</button>
+    <button id="btn-wipe" class="danger">删除全部对话</button>
+  </div>
+
+  <div id="list-host">
+    <div class="empty">读取中…</div>
+  </div>
+
+  <div class="note">
+    <strong>说明</strong>
+    <ul>
+      <li><b>删除单条</b>：点该行的「删除」，会连同只被它引用的附件一起删掉（和官方前端逻辑一致）。</li>
+      <li><b>删除全部</b>：清空 IndexedDB 里的对话与附件，<b>不会</b>删除 API Key。操作不可撤销，建议先「导出全部为 JSON」备份。</li>
+      <li><b>导入聊天记录</b>：请回到 <a href="/">聊天页面</a> → 设置 → 「导入历史对话」，支持 DeepSeek 网页版导出的 ZIP；导入会覆盖当前全部本地对话。</li>
+      <li><b>官方前端本身也有删除</b>：侧边栏对话的「…」菜单可删除单条，设置里有「删除所有对话」。本页是同一份数据的管理入口，适合批量清理或前端打不开时使用。</li>
+      <li><b>注意</b>：如果聊天页面还开着，浏览器会占用数据库，删除可能被阻塞 —— 请先关掉聊天页标签再操作。</li>
+    </ul>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+  var DB_NAME = 'chat-demo';
+  var DB_VERSION = 11;
+  var API_KEY_LS = 'chat-demo:api-key';
+  var SESSION_STORES = ['sessions', 'sessionSummaries'];
+  var ALL_STORES = ['sessions', 'files', 'sessionsStaging', 'filesStaging', 'sessionSummaries'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2200);
+  }
+
+  function req(r) {
+    return new Promise(function (res, rej) {
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function txDone(tx) {
+    return new Promise(function (res, rej) {
+      tx.oncomplete = function () { res(); };
+      tx.onerror = function () { rej(tx.error); };
+      tx.onabort = function () { rej(tx.error || new Error('事务被中止')); };
+    });
+  }
+
+  function dbExists() {
+    return new Promise(function (res) {
+      if (typeof indexedDB.databases !== 'function') return res(null);
+      indexedDB.databases().then(function (list) {
+        res(list.some(function (d) { return d.name === DB_NAME; }));
+      }, function () { res(null); });
+    });
+  }
+
+  function openDB() {
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open(DB_NAME, DB_VERSION);
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+      r.onupgradeneeded = function (e) {
+        // 数据库不存在时不要替前端造假结构：直接放弃并提示没有数据。
+        e.target.transaction.abort();
+        rej(new Error('EMPTY'));
+      };
+      r.onblocked = function () {
+        rej(new Error('BLOCKED'));
+      };
+    });
+  }
+
+  function fmtTime(v) {
+    if (v == null) return '—';
+    var d;
+    if (typeof v === 'number') d = new Date(v < 1e12 ? v * 1000 : v);
+    else if (typeof v === 'string') d = new Date(v);
+    else return '—';
+    if (isNaN(d.getTime())) return '—';
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function bytes(n) {
+    if (!n && n !== 0) return '—';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  function sessionTitle(row, summary) {
+    var t = (summary && summary.title) || (row && row.title) || '';
+    return t || '（未命名对话）';
+  }
+
+  function msgCount(row) {
+    if (row && Array.isArray(row.messages)) return row.messages.length;
+    return null;
+  }
+
+  function fileIdsOf(row, summary) {
+    if (summary && Array.isArray(summary.fileIds)) return summary.fileIds;
+    var ids = [];
+    if (row && Array.isArray(row.messages)) {
+      row.messages.forEach(function (m) {
+        if (m && m.role === 'user' && Array.isArray(m.files)) {
+          m.files.forEach(function (f) { if (f && f.id) ids.push(f.id); });
+        }
+      });
+    }
+    return Array.from(new Set(ids));
+  }
+
+  var state = { rows: [], summaries: new Map(), files: 0, size: 0 };
+
+  async function loadData() {
+    var exists = await dbExists();
+    if (exists === false) {
+      state.rows = [];
+      state.summaries = new Map();
+      state.files = 0;
+      state.size = 0;
+      return;
+    }
+    var db;
+    try {
+      db = await openDB();
+    } catch (err) {
+      if (err && err.message === 'EMPTY') {
+        state.rows = [];
+        state.summaries = new Map();
+        state.files = 0;
+        state.size = 0;
+        return;
+      }
+      if (err && err.message === 'BLOCKED') {
+        throw new Error('数据库被其他标签页占用，请先关闭聊天页面再刷新');
+      }
+      throw err;
+    }
+    try {
+      var tx = db.transaction(ALL_STORES.filter(function (s) { return db.objectStoreNames.contains(s); }), 'readonly');
+      var rowsReq = db.objectStoreNames.contains('sessions') ? tx.objectStore('sessions').getAll() : null;
+      var sumReq = db.objectStoreNames.contains('sessionSummaries') ? tx.objectStore('sessionSummaries').getAll() : null;
+      var fileReq = db.objectStoreNames.contains('files') ? tx.objectStore('files').getAll() : null;
+      var rows = rowsReq ? await req(rowsReq) : [];
+      var sums = sumReq ? await req(sumReq) : [];
+      var files = fileReq ? await req(fileReq) : [];
+      await txDone(tx);
+      state.rows = rows;
+      state.summaries = new Map(sums.map(function (s) { return [s.id, s]; }));
+      state.files = files.length;
+      var size = 0;
+      files.forEach(function (f) {
+        var b = f && (f.blob || f.data);
+        if (b && typeof b.size === 'number') size += b.size;
+        else if (b && typeof b.byteLength === 'number') size += b.byteLength;
+      });
+      state.size = size;
+    } finally {
+      db.close();
+    }
+  }
+
+  function render() {
+    var host = $('list-host');
+    $('st-count').textContent = String(state.rows.length);
+    $('st-files').textContent = String(state.files);
+    $('st-size').textContent = state.files ? bytes(state.size) : '—';
+
+    if (!state.rows.length) {
+      host.innerHTML = '<div class="card empty">还没有本地聊天记录。<br>' +
+        '可以直接在 <a href="/">聊天页面</a> 开始新对话，或在设置里「导入历史对话」。</div>';
+      return;
+    }
+
+    var rows = state.rows.slice().sort(function (a, b) {
+      var ta = Date.parse(a.updatedAt || a.createdAt || 0) || 0;
+      var tb = Date.parse(b.updatedAt || b.createdAt || 0) || 0;
+      if (typeof a.updatedAt === 'number') ta = a.updatedAt < 1e12 ? a.updatedAt * 1000 : a.updatedAt;
+      if (typeof b.updatedAt === 'number') tb = b.updatedAt < 1e12 ? b.updatedAt * 1000 : b.updatedAt;
+      return tb - ta;
+    });
+
+    var html = ['<table><thead><tr><th>对话</th><th style="width:90px">消息</th><th style="width:150px">更新时间</th><th style="width:90px"></th></tr></thead><tbody>'];
+    rows.forEach(function (row) {
+      var sum = state.summaries.get(row.id);
+      var title = sessionTitle(row, sum);
+      var n = msgCount(row);
+      html.push(
+        '<tr data-id="' + String(row.id).replace(/"/g, '&quot;') + '">' +
+        '<td class="title"><div class="t" title="' + String(title).replace(/"/g, '&quot;') + '">' + escapeHtml(title) + '</div>' +
+        '<div class="id">' + escapeHtml(String(row.id)) + '</div></td>' +
+        '<td>' + (n === null ? '—' : n) + '</td>' +
+        '<td>' + fmtTime(row.updatedAt || row.createdAt || (sum && sum.updatedAt)) + '</td>' +
+        '<td><button class="mini danger js-del" data-id="' + escapeHtml(String(row.id)) + '">删除</button></td>' +
+        '</tr>'
+      );
+    });
+    html.push('</tbody></table>');
+    host.innerHTML = html.join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // 与官方前端一致的删除逻辑：删对话 + 摘要，并清理不再被引用的附件
+  async function deleteSession(id) {
+    var db = await openDB();
+    try {
+      var tx = db.transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite');
+      var ss = tx.objectStore('sessionSummaries');
+      var files = tx.objectStore('files');
+      var sessions = tx.objectStore('sessions');
+      var summary = await req(ss.get(id));
+      var row = await req(sessions.get(id));
+      var ids = fileIdsOf(row, summary);
+
+      sessions.delete(id);
+      ss.delete(id);
+
+      for (var i = 0; i < ids.length; i++) {
+        var fid = ids[i];
+        var still = await req(ss.index('fileIds').count(fid));
+        if (still === 0) files.delete(fid);
+      }
+      await txDone(tx);
+    } finally {
+      db.close();
+    }
+  }
+
+  async function wipeAll() {
+    // 先关掉本页连接，再删除整个数据库
+    await new Promise(function (res, rej) {
+      var r = indexedDB.deleteDatabase(DB_NAME);
+      var blocked = false;
+      r.onsuccess = function () { res(); };
+      r.onerror = function () { rej(r.error); };
+      r.onblocked = function () {
+        blocked = true;
+        rej(new Error('BLOCKED'));
+      };
+      setTimeout(function () { if (blocked) rej(new Error('BLOCKED')); }, 3000);
+    });
+  }
+
+  function collectExport() {
+    return {
+      format: 'deepseek-local-history-backup',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      note: '本备份只包含对话与摘要数据，不含附件二进制与 API Key。',
+      sessions: state.rows,
+      sessionSummaries: Array.from(state.summaries.values())
+    };
+  }
+
+  function download(name, text) {
+    var blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  async function refreshStatus() {
+    try {
+      var r = await fetch('/api/status', { cache: 'no-store' });
+      var s = await r.json();
+      var el = $('st-key');
+      if (s.hasApiKey) {
+        el.innerHTML = '<span class="pill ok">已配置</span> ' + escapeHtml(s.apiKeyMasked) +
+          '<div class="hint">来源：config.local.json 注入或页面内填写</div>';
+      } else {
+        el.innerHTML = '<span class="pill warn">未配置</span>' +
+          '<div class="hint">在聊天页面的设置里填写，或写进 config.local.json</div>';
+      }
+    } catch (e) {
+      $('st-key').textContent = '状态不可用';
+    }
+  }
+
+  async function reload() {
+    try {
+      await loadData();
+      render();
+    } catch (err) {
+      $('list-host').innerHTML = '<div class="card empty">' + escapeHtml(err.message || String(err)) + '</div>';
+    }
+  }
+
+  $('btn-refresh').addEventListener('click', async function () {
+    await refreshStatus();
+    await reload();
+    toast('已刷新');
+  });
+
+  $('list-host').addEventListener('click', async function (e) {
+    var btn = e.target.closest('.js-del');
+    if (!btn) return;
+    var id = btn.getAttribute('data-id');
+    var row = state.rows.find(function (r) { return String(r.id) === id; });
+    var sum = state.summaries.get(id);
+    var title = sessionTitle(row, sum);
+    if (!confirm('确定删除「' + title + '」？\n该对话及其附件将不可恢复。')) return;
+    btn.disabled = true;
+    btn.textContent = '删除中…';
+    try {
+      await deleteSession(id);
+      await reload();
+      toast('已删除该对话');
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = '删除';
+      alert('删除失败：' + (err && err.message ? err.message : err) + '\n（若聊天页面正开着，请先关闭它）');
+    }
+  });
+
+  $('btn-export').addEventListener('click', function () {
+    var data = collectExport();
+    var stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    download('deepseek-local-history-' + stamp + '.json', JSON.stringify(data, null, 2));
+    toast('已导出 ' + data.sessions.length + ' 个对话');
+  });
+
+  $('btn-import-help').addEventListener('click', function () {
+    alert('导入方式：\n1) 打开聊天页面\n2) 左下角设置 → 「导入历史对话」\n3) 选择 DeepSeek 网页版导出的 ZIP 文件\n\n注意：导入会覆盖当前全部本地对话。');
+  });
+
+  $('btn-clear-key').addEventListener('click', function () {
+    if (!confirm('清除浏览器里保存的 API Key？\n聊天记录不会受影响。')) return;
+    try { localStorage.removeItem(API_KEY_LS); } catch (e) {}
+    refreshStatus();
+    toast('已清除 API Key');
+  });
+
+  $('btn-wipe').addEventListener('click', async function () {
+    if (!state.rows.length) return toast('当前没有可删除的对话');
+    if (!confirm('删除全部 ' + state.rows.length + ' 个本地对话？\n\n此操作不可撤销，附件也会一并删除。建议先导出备份。')) return;
+    if (!confirm('再次确认：真的要清空全部聊天记录吗？')) return;
+    var btn = $('btn-wipe');
+    btn.disabled = true;
+    btn.textContent = '删除中…';
+    try {
+      await wipeAll();
+      await reload();
+      toast('已清空全部对话');
+    } catch (err) {
+      alert('清空失败：' + (err && err.message === 'BLOCKED'
+        ? '数据库被占用，请先关闭聊天页面标签页后重试'
+        : (err && err.message) || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '删除全部对话';
+    }
+  });
+
+  refreshStatus();
+  reload();
+})();
+</script>
+</body>
+</html>
